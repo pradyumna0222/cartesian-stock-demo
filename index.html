@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Crash Detection - Cartesian Tree</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f2f4f8;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h2 { color: #1f2d3d; }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin: 20px auto;
+            width: 85%;
+            max-width: 950px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin: 5px;
+        }
+
+        input[type="text"] { width: 60%; }
+
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background: #2e86de;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover { background: #1b4f72; }
+
+        .info {
+            font-size: 14px;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        .highlight { color: #d63031; font-weight: bold; }
+        .success { color: #27ae60; font-weight: bold; }
+
+        #treeContainer { margin-top: 20px; overflow-x: auto; }
+
+        svg { background: white; }
+
+        .node {
+            fill: #2e86de;
+            stroke: #1f2d3d;
+            stroke-width: 2;
+        }
+
+        .min-node {
+            fill: #e74c3c !important;
+        }
+
+        .max-node {
+            fill: #27ae60 !important;
+        }
+
+        .node-text {
+            fill: white;
+            font-weight: bold;
+        }
+
+        .edge {
+            stroke: #555;
+            stroke-width: 2;
+        }
+
+        #explanationBox, #rmqExplainBox {
+            text-align: left;
+            background: #eef3f9;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>📊 Real-Time Stock Crash Detection using Cartesian Tree</h2>
+
+<div class="card">
+    <h3>Enter Hourly Stock Prices</h3>
+    <input type="text" id="arrayInput"
+           placeholder="Example: 100, 98, 105, 90, 120, 85, 130">
+    <div class="info">
+        • Enter only numbers separated by commas<br>
+        • Example: 120, 115, 130, 90, 150
+    </div>
+    <br>
+    <button onclick="buildTree()">Build Instantly</button>
+    <button onclick="explainBuild()">Explain Construction</button>
+
+    <div id="explanationBox"></div>
+</div>
+
+<div class="card">
+    <h3>Stock Analysis Tree Visualization</h3>
+    <div id="treeContainer"></div>
+</div>
+
+<div class="card">
+    <h3>🔍 Find Stock Price in Time Window</h3>
+    Start Hour:
+    <input type="number" id="l" min="0">
+    End Hour:
+    <input type="number" id="r" min="0">
+    <button onclick="rangeMin()">Find Lowest</button>
+    <button onclick="rangeMax()">Find Highest</button>
+
+    <div id="rmqOutput"></div>
+    <div id="rmqExplainBox"></div>
+</div>
+
+<script>
+
+class Node {
+    constructor(value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.x = 0;
+        this.y = 0;
+    }
+}
+
+let root = null;
+let arr = [];
+let nodeIndex = 0;
+
+function parseInput() {
+    let input = document.getElementById("arrayInput").value.trim();
+    if (input === "") {
+        alert("Enter stock prices first.");
+        return false;
+    }
+
+    arr = input.split(",").map(x => Number(x.trim()));
+    if (arr.some(isNaN)) {
+        alert("Invalid format. Use only numbers separated by commas.");
+        return false;
+    }
+    return true;
+}
+
+function buildTree() {
+
+    if (!parseInput()) return;
+
+    let stack = [];
+    root = null;
+
+    for (let i = 0; i < arr.length; i++) {
+        let curr = new Node(arr[i]);
+        let last = null;
+
+        while (stack.length && stack[stack.length - 1].value > arr[i]) {
+            last = stack.pop();
+        }
+
+        curr.left = last;
+
+        if (stack.length)
+            stack[stack.length - 1].right = curr;
+        else
+            root = curr;
+
+        stack.push(curr);
+    }
+
+    drawTree(root);
+    document.getElementById("explanationBox").innerHTML =
+        "<span class='success'>Tree built instantly using O(n) stack-based construction.</span>";
+}
+
+function explainBuild() {
+
+    if (!parseInput()) return;
+
+    let stack = [];
+    root = null;
+    let explanation = document.getElementById("explanationBox");
+    explanation.innerHTML = "";
+
+    let i = 0;
+
+    function step() {
+
+        if (i >= arr.length) {
+            explanation.innerHTML += "<br><span class='success'>Construction Completed.</span>";
+            drawTree(root);
+            return;
+        }
+
+        let curr = new Node(arr[i]);
+        let last = null;
+
+        explanation.innerHTML += `<b>Step ${i+1}:</b> Insert ${arr[i]}<br>`;
+
+        while (stack.length && stack[stack.length - 1].value > arr[i]) {
+            let removed = stack.pop();
+            explanation.innerHTML += 
+                `&nbsp;&nbsp;Pop ${removed.value} (greater than ${arr[i]})<br>`;
+            last = removed;
+        }
+
+        curr.left = last;
+
+        if (stack.length) {
+            stack[stack.length - 1].right = curr;
+            explanation.innerHTML += 
+                `&nbsp;&nbsp;Attach ${arr[i]} as right child of ${stack[stack.length - 1].value}<br>`;
+        } else {
+            root = curr;
+            explanation.innerHTML += 
+                `&nbsp;&nbsp;${arr[i]} becomes new root<br>`;
+        }
+
+        stack.push(curr);
+        explanation.innerHTML += `&nbsp;&nbsp;Push ${arr[i]} to stack<br><br>`;
+
+        drawTree(root);
+
+        i++;
+        setTimeout(step, 1000);
+    }
+
+    step();
+}
+
+function assignPositions(node, depth = 0) {
+    if (!node) return;
+    assignPositions(node.left, depth + 1);
+    node.x = nodeIndex++ * 70 + 50;
+    node.y = depth * 80 + 50;
+    assignPositions(node.right, depth + 1);
+}
+
+function drawTree(node) {
+
+    nodeIndex = 0;
+    assignPositions(node);
+
+    const width = arr.length * 80;
+    const height = 400;
+
+    let svg = `<svg width="${width}" height="${height}">`;
+
+    function drawEdges(n) {
+        if (!n) return;
+        if (n.left)
+            svg += `<line class="edge" x1="${n.x}" y1="${n.y}"
+                     x2="${n.left.x}" y2="${n.left.y}" />`;
+        if (n.right)
+            svg += `<line class="edge" x1="${n.x}" y1="${n.y}"
+                     x2="${n.right.x}" y2="${n.right.y}" />`;
+        drawEdges(n.left);
+        drawEdges(n.right);
+    }
+
+    function drawNodes(n) {
+        if (!n) return;
+        svg += `<circle class="node" cx="${n.x}" cy="${n.y}" r="20"/>`;
+        svg += `<text class="node-text"
+                 x="${n.x}" y="${n.y+5}"
+                 text-anchor="middle">${n.value}</text>`;
+        drawNodes(n.left);
+        drawNodes(n.right);
+    }
+
+    drawEdges(node);
+    drawNodes(node);
+
+    svg += `</svg>`;
+    document.getElementById("treeContainer").innerHTML = svg;
+}
+
+function rangeMin() {
+
+    if (!arr.length) return alert("Build the tree first.");
+
+    let l = parseInt(document.getElementById("l").value);
+    let r = parseInt(document.getElementById("r").value);
+    let explainBox = document.getElementById("rmqExplainBox");
+    explainBox.innerHTML = "";
+
+    if (isNaN(l) || isNaN(r) || l < 0 || r >= arr.length || l > r) {
+        explainBox.innerHTML = "<span class='highlight'>Invalid time window.</span>";
+        return;
+    }
+
+    let subArray = arr.slice(l, r + 1);
+    let min = Math.min(...subArray);
+
+    explainBox.innerHTML =
+        `<b>Selected Time Window:</b> Hour ${l} to Hour ${r}<br><br>
+         <b>Values:</b> ${subArray.join(", ")}<br><br>
+         <b>Minimum Value:</b> <span class='highlight'>${min}</span>`;
+
+    document.getElementById("rmqOutput").innerHTML =
+        `📉 Lowest stock price between Hour <b>${l}</b> and <b>${r}</b> is 
+        <span class="highlight">${min}</span>`;
+
+    highlightNode(min, "min");
+}
+
+function rangeMax() {
+
+    if (!arr.length) return alert("Build the tree first.");
+
+    let l = parseInt(document.getElementById("l").value);
+    let r = parseInt(document.getElementById("r").value);
+    let explainBox = document.getElementById("rmqExplainBox");
+    explainBox.innerHTML = "";
+
+    if (isNaN(l) || isNaN(r) || l < 0 || r >= arr.length || l > r) {
+        explainBox.innerHTML = "<span class='highlight'>Invalid time window.</span>";
+        return;
+    }
+
+    let subArray = arr.slice(l, r + 1);
+    let max = Math.max(...subArray);
+
+    explainBox.innerHTML =
+        `<b>Selected Time Window:</b> Hour ${l} to Hour ${r}<br><br>
+         <b>Values:</b> ${subArray.join(", ")}<br><br>
+         <b>Maximum Value:</b> 
+         <span style='color:#27ae60;font-weight:bold;'>${max}</span>`;
+
+    document.getElementById("rmqOutput").innerHTML =
+        `🚀 Highest stock price between Hour <b>${l}</b> and <b>${r}</b> is 
+        <span style='color:#27ae60;font-weight:bold;'>${max}</span>`;
+
+    highlightNode(max, "max");
+}
+
+function highlightNode(value, type) {
+
+    let svg = document.querySelector("svg");
+    if (!svg) return;
+
+    let circles = svg.querySelectorAll("circle");
+
+    circles.forEach(c => {
+        c.classList.remove("min-node");
+        c.classList.remove("max-node");
+    });
+
+    circles.forEach(c => {
+        let text = c.nextElementSibling;
+        if (parseInt(text.textContent) === value) {
+            if (type === "min") c.classList.add("min-node");
+            if (type === "max") c.classList.add("max-node");
+        }
+    });
+}
+
+</script>
+
+</body>
+</html>
