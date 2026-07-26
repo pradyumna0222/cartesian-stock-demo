@@ -1,4 +1,4 @@
-# cartesian-stock-demo
+
 # 🌳 Cartesian Tree for Stock Crash Detection
 
 A C++ implementation of a **Min Cartesian Tree** demonstrating efficient construction using a stack-based algorithm and its application in **stock market time-series analysis** for fast minimum value queries.
