@@ -1,2 +1,2 @@
 # cartesian-stock-demo
-working demo of the cartesian tree
+Cartesian Tree implementation for stock-price analysis, with a min-Cartesian tree approach and in-order traversal validation.
